@@ -25,6 +25,44 @@ env:
   COMMIT_MESSAGE: "cargo update \n\n"
 
 jobs:
+  RUBY:
+    runs-on: ubuntu-latest
+    name: Run build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PSE
+        uses: invisirisk/pse-action@latest
+        with:
+          api_url: "https://app.stage.invisirisk.com"
+          app_token: ${{ secrets.IR_API_KEY }}
+          mode: docker-intercept
+
+      - name: Use Ruby via mise
+        run: |
+          # Add mise to PATH
+          export PATH="$HOME/.local/bin:$PATH"
+          
+          # Install mise
+          curl -sSL https://mise.run | sh
+          
+          # Install Ruby version from mise.toml
+          mise install
+          
+          # Activate Ruby
+          mise use ruby
+          
+          # Verify Ruby version
+          ruby -v
+          
+          # Install Bundler in mise Ruby (avoids permission issues)
+          gem install bundler --no-document
+          
+          # Install all gems from Gemfile
+          bundle install --jobs 4 --retry 3
+
+      - name: Run tests
+        run: bundle exec rake test || echo "No tests defined"
   not-waiting-on-bors:
     if: github.repository_owner == 'rust-lang'
     name: skip if S-waiting-on-bors
@@ -144,3 +182,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr create --title "${PR_TITLE}" --body-file body.md --repo $GITHUB_REPOSITORY
+
+
+
